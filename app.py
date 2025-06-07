@@ -36,10 +36,10 @@ css_custom = """
             height: 70px !important;
             display: inline-block;
         }
-        .result-box {
-            overflow-y: auto;
-            height: 380px !important;
-            display: inline-block;
+        .result-box textarea {
+        max_height: 380px !important;
+        overflow-y: auto !important;
+        white-space: pre-wrap !important;
         }
         .error-box {
             overflow-y: auto;
@@ -199,7 +199,7 @@ def run_pipeline(input_type, pdf_file, image_file, input_text):
 
 # --- 초기화 함수 ---
 def clear_all():
-    return "텍스트", "", "", None, None  # input_text, output_result, image_file, pdf_file
+    return "텍스트", "", "", None, None,gr.update(visible=False), ""  # input_text, output_result, image_file, pdf_file
 
 # --- 맞춤법 적용된 이미지 만드는 함수---
 
@@ -255,14 +255,19 @@ def text_to_pdf(text, font_size=12):
     c.save()
     return temp_path
 
-def download_pdf(text):
-    return text_to_pdf(text)    
+def download_image(): #visible
+    image_path = handle_pdf_upload(file)
+    return gr.update(value=image_path, visible=True)
+
+def download_pdf(text): #visible
+    pdf_path = text_to_pdf(text)
+    return gr.update(value=pdf_path, visible=True)
 
 # --- Gradio UI 구성 ---
 with gr.Blocks() as demo:
     gr.HTML(css_custom)
 
-    gr.Markdown("## OCR 기반 한국어 맞춤법 교정 챗봇 시스템")
+    gr.Markdown("## OCR 기반 우리말 맞춤법 검사기")
     hidden_backend_data = gr.State()        
 
     with gr.Row(elem_classes="fixed-container"):
@@ -301,6 +306,8 @@ with gr.Blocks() as demo:
                 btn_download_png = gr.Button("이미지 다운로드")
                 btn_download_pdf = gr.Button("PDF 다운로드")
 
+            
+
         with gr.Column():
             gr.Markdown("### 오류 사항")
             output_error = gr.Textbox(label="", interactive=False, lines=16, scale=1, elem_classes="error-box")
@@ -317,6 +324,8 @@ with gr.Blocks() as demo:
     # 이미지 또는 PDF 업로드 시 텍스트 자동 채우기
     image_file.change(fn=handle_image_upload, inputs=image_file, outputs=[input_text, hidden_backend_data])
     pdf_file.change(fn=handle_pdf_upload, inputs=pdf_file, outputs=input_text)
+    
+    file_output = gr.File(visible=False)
 
     # 검사 실행 클릭 
     submit_btn.click(fn=run_pipeline,
@@ -324,10 +333,13 @@ with gr.Blocks() as demo:
                      outputs=[output_result, output_error])
 
     # 초기화 버튼 클릭
-    btn_clear.click(fn=clear_all, outputs=[input_type, input_text, output_result, image_file, pdf_file])
+    btn_clear.click(fn=clear_all, outputs=[input_type, input_text, output_result, image_file, pdf_file, file_output, output_error])
 
-    # 다운로드 버튼 클릭 (기능 미완성)
-    btn_download_png.click(fn=lambda: "이미지 수정 기능은 추후 ai활용해 구현 예정")
-    btn_download_pdf.click(fn=download_pdf, inputs=output_result, outputs=gr.File())
+    # 다운로드 버튼 클릭
+    btn_download_png.click(fn=download_image,
+                           outputs=file_output)
+    btn_download_pdf.click(fn=download_pdf,
+                            inputs=output_result,
+                            outputs=file_output)
 
 demo.launch()
